@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f2f2f2; padding:20px; }
+    h1 { text-align:center; }
+    .box { max-width:450px; margin:20px auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
+    label { font-weight:bold; }
+    select, input, button { width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:6px; }
+    button { background:#000; color:#fff; font-weight:bold; cursor:pointer; }
+    .success { background:#d4edda; padding:10px; margin-top:10px; border-radius:6px; color:#155724; }
+    .error { background:#f8d7da; padding:10px; margin-top:10px; border-radius:6px; color:#721c24; }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+
+  <div class="box">
+    <label for="userSelect">Select User:</label>
+    <select id="userSelect"></select>
+
+    <!-- Earnings Section -->
+    <h3>Add Earnings</h3>
+    <input type="number" id="earningsInput" placeholder="Enter amount in USD">
+    <button id="addEarningsBtn">Add Earnings</button>
+
+    <!-- Pin Section -->
+    <h3>Generate Activation Pin</h3>
+    <button id="generatePinBtn">Generate Pin</button>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const userSelect = document.getElementById("userSelect");
+    const addEarningsBtn = document.getElementById("addEarningsBtn");
+    const earningsInput = document.getElementById("earningsInput");
+    const generatePinBtn = document.getElementById("generatePinBtn");
+    const result = document.getElementById("result");
+
+    // Load registered users
+    let users = JSON.parse(localStorage.getItem("users") || "{}");
+    for (let u in users) {
+      let opt = document.createElement("option");
+      opt.value = u;
+      opt.textContent = u;
+      userSelect.appendChild(opt);
+    }
+
+    // Generate random 4-digit pin
+    function generatePin() {
+      return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
+    // Add earnings
+    addEarningsBtn.addEventListener("click", () => {
+      const selectedUser = userSelect.value;
+      const amount = parseFloat(earningsInput.value);
+
+      if (!selectedUser || isNaN(amount) || amount <= 0) {
+        result.innerHTML = `<div class="error">⚠️ Please select a user and enter a valid amount.</div>`;
+        return;
+      }
+
+      let earnings = JSON.parse(localStorage.getItem("earnings") || "{}");
+      if (!earnings[selectedUser.toLowerCase()]) {
+        earnings[selectedUser.toLowerCase()] = 0;
+      }
+      earnings[selectedUser.toLowerCase()] += amount;
+      localStorage.setItem("earnings", JSON.stringify(earnings));
+
+      result.innerHTML = `<div class="success">✅ Added $${amount.toFixed(2)} to <b>${selectedUser}</b>. Total: $${earnings[selectedUser.toLowerCase()].toFixed(2)}</div>`;
+      earningsInput.value = "";
+    });
+
+    // Generate pin
+    generatePinBtn.addEventListener("click", () => {
+      const selectedUser = userSelect.value;
+      if (!selectedUser) {
+        result.innerHTML = `<div class="error">⚠️ Please select a user first.</div>`;
+        return;
+      }
+
+      const newPin = generatePin();
+      let activationPins = JSON.parse(localStorage.getItem("activationPins") || "{}");
+      activationPins[selectedUser.toLowerCase()] = newPin;
+      localStorage.setItem("activationPins", JSON.stringify(activationPins));
+
+      result.innerHTML = `<div class="success">✅ New activation pin for <b>${selectedUser}</b>: <b>${newPin}</b></div>`;
+    });
+  </script>
+</body>
+</html>
