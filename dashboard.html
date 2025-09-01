@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earnings Dashboard</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#FFE85C; color:#000; }
+    .wrap { max-width: 400px; margin: 0 auto; padding: 20px; }
+
+    /* Header */
+    .header { display:flex; align-items:center; justify-content:space-between; }
+    .header .left { display:flex; align-items:center; gap:10px; }
+    .avatar { width:40px; height:40px; border-radius:50%; background:#ccc; }
+
+    /* Currency dropdown */
+    .currency-select { font-size:16px; padding:5px; border-radius:6px; border:1px solid #333; background:#fff; cursor:pointer; }
+
+    /* Earnings */
+    .earnings { margin:15px 0; font-size:20px; font-weight:bold; }
+    .money { font-size:36px; font-weight:bold; display:flex; align-items:center; gap:10px; }
+    .eye-btn { background:none; border:none; cursor:pointer; font-size:20px; }
+
+    /* Top buttons */
+    .pills { display:flex; justify-content:space-between; margin:20px 0; }
+    .pill { background:#000; color:#fff; border:none; padding:10px 18px; border-radius:20px; font-weight:bold; cursor:pointer; }
+
+    /* Panel */
+    .panel { background:#222; color:#fff; padding:20px; border-radius:10px; text-align:center; }
+    .panel h2 { font-size:18px; margin-bottom:10px; }
+    .panel input { width:100%; padding:10px; border-radius:20px; border:none; margin-bottom:10px; font-size:16px; }
+    .enter { background:green; color:#fff; padding:10px 20px; border:none; border-radius:20px; font-weight:bold; cursor:pointer; }
+    .fineprint { margin-top:10px; font-size:12px; line-height:1.4; }
+
+    /* Bottom buttons */
+    .footer-pills { display:flex; justify-content:space-between; margin-top:20px; }
+    .bigpill { background:#000; color:#fff; border:none; padding:15px 20px; border-radius:20px; font-weight:bold; cursor:pointer; flex:1; margin:0 5px; }
+
+    /* Messages */
+    .message { margin-top:10px; padding:10px; border-radius:6px; font-size:14px; }
+    .error { background:#f8d7da; color:#721c24; }
+    .success { background:#d4edda; color:#155724; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="left">
+        <div class="avatar"></div>
+        <div id="usernameDisplay">Hi User</div>
+      </div>
+      <select class="currency-select" id="currency">
+        <option value="usd" selected>$ USD</option>
+        <option value="php">₱ PHP</option>
+        <option value="gbp">£ GBP</option>
+        <option value="eur">€ EUR</option>
+      </select>
+    </div>
+
+    <div class="earnings">Earnings:</div>
+    <div class="money" id="earningsAmount">
+      <span id="balanceValue">$0.00</span>
+      <button class="eye-btn" id="toggleEye">👁️</button>
+    </div>
+
+    <div class="pills">
+      <button class="pill" id="addPaymentBtn">Add payment method</button>
+      <button class="pill" id="withdrawBtn">Withdraw</button>
+    </div>
+
+    <!-- Payment panel -->
+    <div class="panel" id="paymentPanel" style="display:none;">
+      <h2>Select Payment Method</h2>
+      <select id="paymentSelect">
+        <option value="">--Choose--</option>
+        <option value="paypal">PayPal</option>
+        <option value="gcash">Gcash</option>
+        <option value="bank">Bank</option>
+      </select>
+      <input type="text" id="paymentInput" placeholder="">
+      <button class="enter" id="savePayment">Save</button>
+      <div class="fineprint" id="paymentSaved"></div>
+    </div>
+
+    <!-- Pin panel -->
+    <div class="panel">
+      <h2>Enter activation pin here</h2>
+      <input type="text" id="pinInput" placeholder="Enter Pin">
+      <button class="enter" id="enterPinBtn">Enter</button>
+      <div class="fineprint">
+        To ensure a smooth and secure withdrawal process, an activation fee is required before
+        earnings can be withdrawn. Tap "See more" for details.
+      </div>
+      <div id="pinMessage"></div>
+    </div>
+
+    <div class="footer-pills">
+      <button class="bigpill" id="buyPinBtn">Click here to buy activation pin</button>
+      <button class="bigpill" id="seeMoreBtn">See more</button>
+    </div>
+  </div>
+
+  <script>
+    const username = localStorage.getItem("loggedInUser");
+    const users = JSON.parse(localStorage.getItem("users") || "{}");
+    const earnings = JSON.parse(localStorage.getItem("earnings") || "{}");
+    const activationPins = JSON.parse(localStorage.getItem("activationPins") || "{}");
+
+    const usernameDisplay = document.getElementById("usernameDisplay");
+    const balanceValue = document.getElementById("balanceValue");
+    const currencySelect = document.getElementById("currency");
+    const toggleEye = document.getElementById("toggleEye");
+    const withdrawBtn = document.getElementById("withdrawBtn");
+    const pinInput = document.getElementById("pinInput");
+    const enterPinBtn = document.getElementById("enterPinBtn");
+    const pinMessage = document.getElementById("pinMessage");
+
+    const addPaymentBtn = document.getElementById("addPaymentBtn");
+    const paymentPanel = document.getElementById("paymentPanel");
+    const paymentSelect = document.getElementById("paymentSelect");
+    const paymentInput = document.getElementById("paymentInput");
+    const savePayment = document.getElementById("savePayment");
+    const paymentSaved = document.getElementById("paymentSaved");
+
+    // Default balance if none
+    if (!earnings[username]) {
+      earnings[username] = 5;
+      localStorage.setItem("earnings", JSON.stringify(earnings));
+    }
+
+    let isHidden = false;
+    let pinEntered = false;
+
+    // Currency rates
+    const rates = { usd: 1, php: 56, gbp: 0.79, eur: 0.92 };
+    const symbols = { usd: "$", php: "₱", gbp: "£", eur: "€" };
+
+    function updateBalance() {
+      const val = earnings[username] || 0;
+      const selected = currencySelect.value;
+      const converted = (val * rates[selected]).toFixed(2);
+      balanceValue.textContent = isHidden ? "****" : `${symbols[selected]}${converted}`;
+    }
+
+    // Toggle eye
+    toggleEye.addEventListener("click", () => {
+      isHidden = !isHidden;
+      updateBalance();
+    });
+
+    currencySelect.addEventListener("change", updateBalance);
+
+    // Payment method logic
+    addPaymentBtn.addEventListener("click", () => {
+      paymentPanel.style.display = paymentPanel.style.display === "none" ? "block" : "none";
+    });
+
+    paymentSelect.addEventListener("change", () => {
+      if (paymentSelect.value === "paypal") paymentInput.placeholder = "Enter PayPal username";
+      if (paymentSelect.value === "gcash") paymentInput.placeholder = "Enter GCash number";
+      if (paymentSelect.value === "bank") paymentInput.placeholder = "Enter Bank account number";
+    });
+
+    savePayment.addEventListener("click", () => {
+      if (paymentSelect.value && paymentInput.value.trim()) {
+        paymentSaved.textContent = `Saved: ${paymentSelect.value} - ${paymentInput.value}`;
+      }
+    });
+
+    // Pin check
+    enterPinBtn.addEventListener("click", () => {
+      const correctPin = activationPins[username];
+      if (!correctPin) {
+        pinMessage.innerHTML = `<div class="message error">⚠️ No activation pin assigned. Contact your manager.</div>`;
+        pinEntered = false;
+        return;
+      }
+      if (pinInput.value === correctPin) {
+        pinMessage.innerHTML = `<div class="message success">✅ Pin correct. You can now withdraw.</div>`;
+        pinEntered = true;
+      } else {
+        pinMessage.innerHTML = `<div class="message error">❌ Incorrect pin.</div>`;
+        pinEntered = false;
+      }
+    });
+
+    // Withdraw check
+    withdrawBtn.addEventListener("click", () => {
+      const balance = earnings[username] || 0;
+      if (balance < 35) {
+        alert("⚠️ Balance must be at least $35 to withdraw.");
+        return;
+      }
+      if (!pinEntered) {
+        alert("⚠️ Please enter correct activation pin first.");
+        return;
+      }
+      alert("✅ Withdrawal request successful!");
+    });
+
+    // Buy pin
+    document.getElementById("buyPinBtn").addEventListener("click", () => {
+      alert("💡 Please contact your project manager to purchase an activation pin.");
+    });
+
+    // See more
+    document.getElementById("seeMoreBtn").addEventListener("click", () => {
+      alert("ℹ️ The activation pin ensures security and verifies users before withdrawal. It prevents fraud, unauthorized access, and ensures smooth transactions.");
+    });
+
+    // Init
+    usernameDisplay.textContent = "Hi " + username;
+    updateBalance();
+  </script>
+</body>
+</html>

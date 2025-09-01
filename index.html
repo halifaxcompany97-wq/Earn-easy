@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Signup</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; display:flex; justify-content:center; align-items:center; height:100vh; }
+    .container { background:#fff; padding:30px; border-radius:10px; width:350px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    h2 { text-align:center; }
+    input { width:100%; padding:10px; margin:8px 0; border:1px solid #000; border-radius:5px; font-size:16px; }
+    button { width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; font-size:16px; font-weight:bold; cursor:pointer; }
+    .login-btn { background:#007bff; color:#fff; }
+    .signup-btn { background:#28a745; color:#fff; }
+    .toggle { text-align:center; margin-top:10px; cursor:pointer; color:#007bff; }
+    .eye-btn { position:absolute; right:15px; top:42%; cursor:pointer; background:none; border:none; font-size:16px; }
+    .input-group { position:relative; }
+    .message { margin-top:10px; font-size:14px; padding:8px; border-radius:5px; }
+    .error { background:#f8d7da; color:#721c24; }
+    .success { background:#d4edda; color:#155724; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="formTitle">Login</h2>
+    <div id="message"></div>
+    <input type="text" id="username" placeholder="Username">
+    <div class="input-group">
+      <input type="password" id="password" placeholder="Password">
+      <button class="eye-btn" id="togglePassword">👁️</button>
+    </div>
+    <button class="login-btn" id="loginBtn">Login</button>
+    <button class="signup-btn" id="signupBtn" style="display:none;">Sign Up</button>
+    <div class="toggle" id="toggleForm">Don’t have an account? Sign Up</div>
+  </div>
+
+  <script>
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const signupBtn = document.getElementById("signupBtn");
+    const toggleForm = document.getElementById("toggleForm");
+    const formTitle = document.getElementById("formTitle");
+    const messageBox = document.getElementById("message");
+    const togglePassword = document.getElementById("togglePassword");
+
+    let isLogin = true;
+
+    // Load saved users
+    let users = JSON.parse(localStorage.getItem("users") || "{}");
+    let earnings = JSON.parse(localStorage.getItem("earnings") || "{}");
+
+    // Normalize usernames to lowercase
+    function normalizeUsers() {
+      const newUsers = {};
+      for (const key in users) {
+        newUsers[key.toLowerCase()] = users[key];
+      }
+      users = newUsers;
+      localStorage.setItem("users", JSON.stringify(users));
+    }
+    normalizeUsers();
+
+    // Toggle login/signup view
+    toggleForm.addEventListener("click", () => {
+      isLogin = !isLogin;
+      if (isLogin) {
+        formTitle.textContent = "Login";
+        loginBtn.style.display = "block";
+        signupBtn.style.display = "none";
+        toggleForm.textContent = "Don’t have an account? Sign Up";
+      } else {
+        formTitle.textContent = "Sign Up";
+        loginBtn.style.display = "none";
+        signupBtn.style.display = "block";
+        toggleForm.textContent = "Already have an account? Login";
+      }
+      messageBox.innerHTML = "";
+    });
+
+    // Toggle password visibility
+    togglePassword.addEventListener("click", () => {
+      passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+    });
+
+    // Login
+    loginBtn.addEventListener("click", () => {
+      const u = usernameInput.value.trim().toLowerCase();
+      const p = passwordInput.value;
+      if (users[u] && users[u] === p) {
+        localStorage.setItem("loggedInUser", u);
+        messageBox.innerHTML = `<div class="message success">✅ Login successful! Redirecting...</div>`;
+        setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+      } else {
+        messageBox.innerHTML = `<div class="message error">❌ Incorrect username or password</div>`;
+      }
+    });
+
+    // Signup
+    signupBtn.addEventListener("click", () => {
+      const u = usernameInput.value.trim().toLowerCase();
+      const p = passwordInput.value;
+      if (!u || !p) {
+        messageBox.innerHTML = `<div class="message error">⚠️ Username and password required</div>`;
+        return;
+      }
+      if (users[u]) {
+        messageBox.innerHTML = `<div class="message error">⚠️ Username already exists</div>`;
+        return;
+      }
+      users[u] = p;
+      localStorage.setItem("users", JSON.stringify(users));
+      earnings[u] = 5; // default $5 balance
+      localStorage.setItem("earnings", JSON.stringify(earnings));
+      localStorage.setItem("loggedInUser", u);
+      messageBox.innerHTML = `<div class="message success">✅ Account created! Redirecting...</div>`;
+      setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+    });
+  </script>
+</body>
+</html>
